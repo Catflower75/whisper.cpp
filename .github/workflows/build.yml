@@ -41,7 +41,7 @@ jobs:
           Invoke-WebRequest -Uri https://developer.download.nvidia.com/compute/cuda/12.9.0/network_installers/cuda_12.9.0_windows_network.exe -OutFile cuda_installer.exe
           7z x cuda_installer.exe -ocuda_temp
           $cudaDir = Get-ChildItem cuda_temp | Where-Object { $_.PSIsContainer -and $_.Name -like 'CUDA*' } | Select-Object -First 1
-          echo "CUDA_PATH=$env:GITHUB_WORKSPACE\\cuda_temp\\$($cudaDir.Name)" >> $env:GITHUB_ENV
+          echo "CUDA_PATH=${{ github.workspace }}\\cuda_temp\\$($cudaDir.Name)" >> $env:GITHUB_ENV
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
@@ -59,6 +59,7 @@ jobs:
           -DGGML_CUDA=1
           -DCMAKE_CUDA_ARCHITECTURES=89
           -DCMAKE_CUDA_COMPILER="$env:CUDA_PATH\\bin\\nvcc.exe"
+          -DCUDAToolkit_ROOT="$env:CUDA_PATH"
 
       - name: Build
         run: |
