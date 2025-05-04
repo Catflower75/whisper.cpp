@@ -36,12 +36,12 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
-      - name: Download CUDA Toolkit 12.3 (standalone)
+      - name: Download CUDA Toolkit 12.9.0 (standalone)
         run: |
-          Invoke-WebRequest -Uri https://developer.download.nvidia.com/compute/cuda/12.3.0/local_installers/cuda_12.3.0_windows_network.exe -OutFile cuda_installer.exe
+          Invoke-WebRequest -Uri https://developer.download.nvidia.com/compute/cuda/12.9.0/network_installers/cuda_12.9.0_windows_network.exe -OutFile cuda_installer.exe
           7z x cuda_installer.exe -ocuda_temp
           $cudaDir = Get-ChildItem cuda_temp | Where-Object { $_.PSIsContainer -and $_.Name -like 'CUDA*' } | Select-Object -First 1
-          echo "CUDA_PATH=${{ github.workspace }}\\cuda_temp\\$($cudaDir.Name)" >> $env:GITHUB_ENV
+          echo "CUDA_PATH=$env:GITHUB_WORKSPACE\\cuda_temp\\$($cudaDir.Name)" >> $env:GITHUB_ENV
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
