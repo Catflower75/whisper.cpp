@@ -2,8 +2,7 @@ name: CI
 
 on:
   push:
-    branches:
-      - master
+    branches: [master]
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
@@ -36,16 +35,24 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
-      - name: Download CUDA Toolkit 12.9.0 (full installer with nvcc)
+      - name: Download and extract CUDA Toolkit 12.9.0 full bundle
         run: |
           Invoke-WebRequest -Uri https://developer.download.nvidia.com/compute/cuda/12.9.0/local_installers/cuda_12.9.0_576.02_windows.exe -OutFile cuda_full.exe
           7z x cuda_full.exe -ocuda_temp
+
+          # Find paths
           $nvccPath = Get-ChildItem -Recurse -Path cuda_temp -Filter nvcc.exe | Select-Object -First 1
           $cudaBin = $nvccPath.DirectoryName
           $cudaRoot = $cudaBin -replace '\\bin$', ''
+
+          $cudaInclude = Get-Item "$cudaRoot\\include"
+          $cudaLib = Get-Item "$cudaRoot\\lib\\x64"
+
           echo "CUDA_PATH=$cudaRoot" >> $env:GITHUB_ENV
           echo "CUDAToolkit_ROOT=$cudaRoot" >> $env:GITHUB_ENV
           echo "CMAKE_CUDA_COMPILER=$cudaBin\\nvcc.exe" >> $env:GITHUB_ENV
+          echo "CUDA_INCLUDE_DIR=$($cudaInclude.FullName)" >> $env:GITHUB_ENV
+          echo "CUDA_LIBRARY_DIR=$($cudaLib.FullName)" >> $env:GITHUB_ENV
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
@@ -54,7 +61,7 @@ jobs:
           7z x sdl2.zip
           echo "SDL2_DIR=$env:GITHUB_WORKSPACE/SDL2-${{ matrix.s2ver }}/cmake" >> $env:GITHUB_ENV
 
-      - name: Configure (with CUDA support)
+      - name: Configure (CUDA ready)
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
@@ -64,6 +71,8 @@ jobs:
           -DCMAKE_CUDA_ARCHITECTURES=89
           -DCMAKE_CUDA_COMPILER="$env:CMAKE_CUDA_COMPILER"
           -DCUDAToolkit_ROOT="$env:CUDAToolkit_ROOT"
+          -DCMAKE_INCLUDE_PATH="$env:CUDA_INCLUDE_DIR"
+          -DCMAKE_LIBRARY_PATH="$env:CUDA_LIBRARY_DIR"
 
       - name: Build
         run: |
