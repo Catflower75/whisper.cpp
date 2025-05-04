@@ -36,10 +36,12 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
-      - name: Install CUDA Toolkit
+      - name: Download CUDA Toolkit 12.3 (standalone)
         run: |
-          choco install cuda --version=12.3.0 -y
-          echo "CUDA_PATH=C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.3" >> $env:GITHUB_ENV
+          Invoke-WebRequest -Uri https://developer.download.nvidia.com/compute/cuda/12.3.0/local_installers/cuda_12.3.0_windows_network.exe -OutFile cuda_installer.exe
+          7z x cuda_installer.exe -ocuda_temp
+          $cudaDir = Get-ChildItem cuda_temp | Where-Object { $_.PSIsContainer -and $_.Name -like 'CUDA*' } | Select-Object -First 1
+          echo "CUDA_PATH=${{ github.workspace }}\\cuda_temp\\$($cudaDir.Name)" >> $env:GITHUB_ENV
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
@@ -56,6 +58,7 @@ jobs:
           -DWHISPER_SDL2=${{ matrix.sdl2 }}
           -DGGML_CUDA=1
           -DCMAKE_CUDA_ARCHITECTURES=89
+          -DCMAKE_CUDA_COMPILER="$env:CUDA_PATH\\bin\\nvcc.exe"
 
       - name: Build
         run: |
