@@ -43,12 +43,14 @@ jobs:
           7z x sdl2.zip
           echo "SDL2_DIR=$env:GITHUB_WORKSPACE/SDL2-${{ matrix.s2ver }}/cmake" >> $env:GITHUB_ENV
 
-      - name: Configure
+      - name: Configure (with CUDA support)
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
           -DBUILD_SHARED_LIBS=ON
           -DWHISPER_SDL2=${{ matrix.sdl2 }}
+          -DGGML_CUDA=1
+          -DCMAKE_CUDA_ARCHITECTURES=89
 
       - name: Build
         run: |
