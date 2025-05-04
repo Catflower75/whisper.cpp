@@ -36,6 +36,11 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
+      - name: Install CUDA Toolkit
+        run: |
+          choco install cuda --version=12.3.0 -y
+          echo "CUDA_PATH=C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.3" >> $env:GITHUB_ENV
+
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
         run: |
