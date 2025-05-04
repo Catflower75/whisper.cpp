@@ -36,23 +36,23 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Download and extract CUDA Toolkit 12.9.0 full bundle
+        shell: pwsh
         run: |
           Invoke-WebRequest -Uri https://developer.download.nvidia.com/compute/cuda/12.9.0/local_installers/cuda_12.9.0_576.02_windows.exe -OutFile cuda_full.exe
           7z x cuda_full.exe -ocuda_temp
 
-          # Find paths
-          $nvccPath = Get-ChildItem -Recurse -Path cuda_temp -Filter nvcc.exe | Select-Object -First 1
-          $cudaBin = $nvccPath.DirectoryName
-          $cudaRoot = $cudaBin -replace '\\bin$', ''
-
-          $cudaInclude = Get-Item "$cudaRoot\\include"
-          $cudaLib = Get-Item "$cudaRoot\\lib\\x64"
+          # Locate cuda_runtime.h, then deduce include, bin, lib paths
+          $cudaHeader = Get-ChildItem -Recurse -Path cuda_temp -Filter cuda_runtime.h | Select-Object -First 1
+          $cudaInclude = $cudaHeader.Directory.FullName
+          $cudaRoot = $cudaInclude -replace '\\include$', ''
+          $cudaBin = Join-Path $cudaRoot 'bin'
+          $cudaLib = Join-Path $cudaRoot 'lib\x64'
 
           echo "CUDA_PATH=$cudaRoot" >> $env:GITHUB_ENV
           echo "CUDAToolkit_ROOT=$cudaRoot" >> $env:GITHUB_ENV
           echo "CMAKE_CUDA_COMPILER=$cudaBin\\nvcc.exe" >> $env:GITHUB_ENV
-          echo "CUDA_INCLUDE_DIR=$($cudaInclude.FullName)" >> $env:GITHUB_ENV
-          echo "CUDA_LIBRARY_DIR=$($cudaLib.FullName)" >> $env:GITHUB_ENV
+          echo "CUDA_INCLUDE_DIR=$cudaInclude" >> $env:GITHUB_ENV
+          echo "CUDA_LIBRARY_DIR=$cudaLib" >> $env:GITHUB_ENV
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
@@ -61,7 +61,7 @@ jobs:
           7z x sdl2.zip
           echo "SDL2_DIR=$env:GITHUB_WORKSPACE/SDL2-${{ matrix.s2ver }}/cmake" >> $env:GITHUB_ENV
 
-      - name: Configure (CUDA ready)
+      - name: Configure (with CUDA support)
         run: >
           cmake -S . -B ./build -A ${{ matrix.arch }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build }}
