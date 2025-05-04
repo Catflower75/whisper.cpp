@@ -35,16 +35,25 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
-      - name: Download and extract CUDA Toolkit 12.9.0 full bundle
+      - name: Download and extract CUDA Toolkit 12.9.0 (deep extraction)
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri https://developer.download.nvidia.com/compute/cuda/12.9.0/local_installers/cuda_12.9.0_576.02_windows.exe -OutFile cuda_full.exe
-          7z x cuda_full.exe -ocuda_temp
+          7z x cuda_full.exe -ocuda_stage1
 
-          # Find nvcc.exe
-          $nvcc = Get-ChildItem -Path cuda_temp -Recurse -Filter nvcc.exe | Where-Object { $_.FullName -like "*\\bin\\nvcc.exe" } | Select-Object -First 1
+          # Cherche le .7z contenant le Toolkit (inclut nvcc)
+          $inner7z = Get-ChildItem -Recurse -Path cuda_stage1 -Filter "*.7z" | Where-Object { $_.Name -match "Toolkit" } | Select-Object -First 1
+          if (-not $inner7z) {
+            throw "Toolkit .7z archive not found inside CUDA installer"
+          }
+
+          # Deuxième extraction
+          7z x $inner7z.FullName -ocuda_final
+
+          # Localise nvcc
+          $nvcc = Get-ChildItem -Path cuda_final -Recurse -Filter nvcc.exe | Where-Object { $_.FullName -like "*\\bin\\nvcc.exe" } | Select-Object -First 1
           if (-not $nvcc) {
-            throw "nvcc.exe not found after extracting CUDA bundle"
+            throw "nvcc.exe not found after second-level extraction"
           }
 
           $cudaBin = $nvcc.Directory.FullName
