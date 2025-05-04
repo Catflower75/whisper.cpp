@@ -41,18 +41,27 @@ jobs:
           Invoke-WebRequest -Uri https://developer.download.nvidia.com/compute/cuda/12.9.0/local_installers/cuda_12.9.0_576.02_windows.exe -OutFile cuda_full.exe
           7z x cuda_full.exe -ocuda_temp
 
-          # Locate cuda_runtime.h, then deduce include, bin, lib paths
-          $cudaHeader = Get-ChildItem -Recurse -Path cuda_temp -Filter cuda_runtime.h | Select-Object -First 1
-          $cudaInclude = $cudaHeader.Directory.FullName
-          $cudaRoot = $cudaInclude -replace '\\include$', ''
-          $cudaBin = Join-Path $cudaRoot 'bin'
-          $cudaLib = Join-Path $cudaRoot 'lib\x64'
+          # Find nvcc.exe
+          $nvcc = Get-ChildItem -Path cuda_temp -Recurse -Filter nvcc.exe | Where-Object { $_.FullName -like "*\\bin\\nvcc.exe" } | Select-Object -First 1
+          if (-not $nvcc) {
+            throw "nvcc.exe not found after extracting CUDA bundle"
+          }
+
+          $cudaBin = $nvcc.Directory.FullName
+          $cudaRoot = $cudaBin -replace "\\bin$", ""
+          $cudaInclude = Join-Path $cudaRoot "include"
+          $cudaLib = Join-Path $cudaRoot "lib\\x64"
 
           echo "CUDA_PATH=$cudaRoot" >> $env:GITHUB_ENV
           echo "CUDAToolkit_ROOT=$cudaRoot" >> $env:GITHUB_ENV
           echo "CMAKE_CUDA_COMPILER=$cudaBin\\nvcc.exe" >> $env:GITHUB_ENV
           echo "CUDA_INCLUDE_DIR=$cudaInclude" >> $env:GITHUB_ENV
           echo "CUDA_LIBRARY_DIR=$cudaLib" >> $env:GITHUB_ENV
+
+      - name: (Optional) Check nvcc version
+        shell: pwsh
+        run: |
+          & "$env:CMAKE_CUDA_COMPILER" --version
 
       - name: Fetch SDL2 and set SDL2_DIR
         if: matrix.sdl2 == 'ON'
